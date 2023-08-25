@@ -1,7 +1,13 @@
 package com.example.fluxdemo.Controller;
 
+import com.example.fluxdemo.DAO.Address;
+import com.example.fluxdemo.DAO.User;
+import com.example.fluxdemo.Service.AddressService;
+import com.example.fluxdemo.Service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -13,6 +19,13 @@ import java.util.stream.Collectors;
 
 @RestController
 public class FrontController {
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private AddressService addressService;
+
     int storage = 10;
     AtomicInteger count = new AtomicInteger(1);
     boolean running = false;
@@ -57,5 +70,24 @@ public class FrontController {
         String[] strings = paragraph.split(" ");
         Flux<String> wordFlux = Flux.fromArray(strings);
         return wordFlux.delayElements(Duration.ofSeconds(1));
+    }
+
+    @GetMapping("/user/{userid}")
+    public User getUser(@PathVariable int userid) {
+        User user = userService.getUserByUserId(userid);
+        Address address = addressService.getAddressByUserId(userid);
+        user.setAddress(address);
+        return user;
+    }
+
+    @GetMapping("/userReactive/{userid}")
+    public Mono<User> getUserReactive(@PathVariable int userid) throws InterruptedException {
+        return Mono.zip(userService.getUserByUserIdReactive(userid), addressService.getAddressByUserIdReactive(userid))
+                .map(tuple -> {
+                    User user = tuple.getT1();
+                    Address address = tuple.getT2();
+                    user.setAddress(address);
+                    return user;
+                });
     }
 }
